@@ -165,9 +165,9 @@ int main(int argc, char **argv) {
 	def.encoding = encodingArg(args.get("enc", "utf8"));
 	def.bomBytes = std::stoi(args.get("bom", "0"));
 
-	// Same call as CsvWindow::loadFile(): default-constructed ifstream, text mode.
+	// Same call as CsvWindow::loadFile(): wide path on Win64, text mode (matters on Windows).
 	std::ifstream input;
-	input.open(file);
+	Helper::openInputStream(input, file);
 	if( !input ) {
 		std::fprintf(stderr, "cannot open %s\n", file.c_str());
 		return 1;

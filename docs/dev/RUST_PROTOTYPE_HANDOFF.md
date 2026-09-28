@@ -2,7 +2,7 @@
 
 **Audience:** the LLM agent that builds the prototype.
 **Status:** plan approved, nothing implemented yet.
-**Repo:** local fork of `https://github.com/forward-press/tablecruncher.git`, branch `main`.
+**Repo:** local fork of `https://github.com/forward-press/tablecruncher.git`, working branch `rewrite/rust/rust-main` (based on `main`).
 
 ---
 
@@ -12,7 +12,7 @@
 2. Decisions in §3 are **final**. Do not re-evaluate them. If one proves impossible, follow §12 (stop-and-ask).
 3. Work phase by phase (§7–§11). Do not start a phase before the previous phase's exit criteria pass.
 4. Record every measured number in `rust/BENCHMARKS.md` (template in §13). No claim about speed without a number.
-5. Commit at the end of each phase on branch `rust-prototype` (create it from `main`). One commit per phase minimum; message `proto: phase N – <summary>`.
+5. Commit at the end of each phase on branch `rewrite/rust/rust-main`. One commit per phase minimum; message `proto: phase N – <summary>`.
 6. Keep it a prototype: smallest code that meets the exit criteria. No speculative abstractions, no plugin systems, no config for values that never change.
 
 ---
@@ -367,7 +367,7 @@ Measured on the user's Windows PC, release builds, same files, median of 3 runs 
 - [ ] **Windows** (user's machine): Visual Studio 2022 with "Desktop development with C++" is installed. Use the **"x64 Native Tools Command Prompt for VS 2022"** for C++ builds (the plain Developer prompt targets x86). FLTK 1.4.5 is at `C:\dev\fltk-1.4.5`, built in `C:\dev\fltk-1.4.5\build-nmake` (`FLTKINCDIR=C:\dev\fltk-1.4.5`, `FLTKLIBDIR=C:\dev\fltk-1.4.5\build-nmake`). Existing app build output: `build\dist\Tablecruncher.exe`.
 - [ ] **macOS** (CI, or a Mac if provided): full **Xcode** (GPUI compiles Metal shaders at build time; Command Line Tools alone are not enough). `sudo xcode-select --switch /Applications/Xcode.app` and verify `xcrun -find metal`.
 - [ ] **Linux** (Debian/Ubuntu, WSL2 or VM): `sudo apt install build-essential pkg-config libfontconfig-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libxcb1-dev libvulkan-dev mesa-vulkan-drivers`. If linking fails, check the dependency list in Zed's `script/linux` and add what is missing. Without a GPU, Mesa's lavapipe (software Vulkan) is used — this doubles as the "no GPU" test.
-- [ ] Create branch `rust-prototype`, add the `.gitignore` entries from §2.
+- [ ] Work on branch `rewrite/rust/rust-main` (based on `main`); add the `.gitignore` entries from §2.
 
 ### 7.2 Test data generator (`tc-core/src/bin/gen-testdata.rs`)
 
