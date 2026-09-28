@@ -468,13 +468,9 @@ fn gen_win1252(rng: &mut Rng, path: &Path) -> io::Result<()> {
     w.flush()
 }
 
+/// Encodes `s` as UTF-16 without a BOM (the caller writes the BOM once per file).
 fn utf16_bytes(s: &str, big_endian: bool) -> Vec<u8> {
-    let mut out = Vec::with_capacity(s.len() * 2 + 2);
-    if big_endian {
-        out.extend_from_slice(&0xFEFF_u16.to_be_bytes());
-    } else {
-        out.extend_from_slice(&0xFEFF_u16.to_le_bytes());
-    }
+    let mut out = Vec::with_capacity(s.len() * 2);
     for u in s.encode_utf16() {
         if big_endian {
             out.extend_from_slice(&u.to_be_bytes());
@@ -504,6 +500,7 @@ fn gen_utf16(
         "mixed 文本",
     ];
     let mut w = create(path)?;
+    w.write_all(&utf16_bytes("\u{FEFF}", big_endian))?;
     let mut row = String::with_capacity(64);
     let end = if crlf { "\r\n" } else { "\n" };
     for i in 0..rows {
@@ -629,4 +626,15 @@ fn main() -> io::Result<()> {
 
     println!("total {} bytes", total);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::utf16_bytes;
+
+    #[test]
+    fn utf16_rows_carry_no_bom() {
+        assert_eq!(utf16_bytes("a\n", false), [0x61, 0x00, 0x0A, 0x00]);
+        assert_eq!(utf16_bytes("a\n", true), [0x00, 0x61, 0x00, 0x0A]);
+    }
 }

@@ -82,7 +82,7 @@ struct Args {
 };
 
 Args parseArgs(int argc, char **argv) {
-	static const std::set<std::string> boolFlags = {"save", "sort-desc"};
+	static const std::set<std::string> boolFlags = {"save", "save-sorted", "sort-desc"};
 	Args args;
 	for( int i = 1; i < argc; ++i ) {
 		std::string key = argv[i];
@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 		std::fprintf(stderr, "usage: tc_bench_cpp --file F [--delim C|tab] [--quote C] [--escape C] "
 			"[--enc utf8|latin1|win1252|utf16le|utf16be] [--bom N] [--out PREFIX] [--save] "
 			"[--find T] [--find-ci T] [--find-re P] [--macro F.js --macro-sel r0,c0,r1,c1] "
-			"[--sort-col N --sort-type num|str|stri [--sort-desc]]\n");
+			"[--sort-col N --sort-type num|str|stri [--sort-desc] [--save-sorted]]\n");
 		return 2;
 	}
 	g_file = baseName(file);
@@ -208,6 +208,8 @@ int main(int argc, char **argv) {
 			return 1;
 		}
 		report("macro", start, table);
+		if( !save("save_macro", table, out + ".macro.csv") )		// the macro's result is what parity compares
+			return 1;
 	}
 
 	if( args.has("sort-col") ) {
@@ -216,7 +218,7 @@ int main(int argc, char **argv) {
 		start = Clock::now();
 		table.sortTable(std::stoi(args.get("sort-col")), !args.has("sort-desc"), sortType);
 		report("sort", start, table);
-		if( !save("save_sorted", table, out + ".sorted.csv") )
+		if( args.has("save-sorted") && !save("save_sorted", table, out + ".sorted.csv") )
 			return 1;
 	}
 	return 0;

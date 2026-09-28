@@ -29,7 +29,7 @@ struct Case {
     steps: &'static [&'static str],
     /// true: warm-up + N measured runs; false: one run, only for parity
     timed: bool,
-    /// output suffixes (`saved`, `after`) compared byte for byte between the tools
+    /// output suffixes (`saved`, `sorted`, `macro`) compared byte for byte between the tools
     parity: &'static [&'static str],
 }
 
@@ -98,7 +98,7 @@ fn cases() -> Vec<Case> {
                 "--macro-sel",
                 "1,2,-1,-1",
             ],
-            &[],
+            &["macro"],
         ),
         // unique keys, so the sorted output must be identical despite unstable vs. stable sort
         Case {
@@ -106,7 +106,7 @@ fn cases() -> Vec<Case> {
             ..utf8(
                 "big-sort-id",
                 "big.csv",
-                &["--sort-col", "0", "--sort-type", "num"],
+                &["--sort-col", "0", "--sort-type", "num", "--save-sorted"],
                 &["sorted"],
             )
         },

@@ -401,10 +401,10 @@ Standalone CMake project; does **not** touch the root `CMakeLists.txt`.
 - Behaviour:
   1. Parse CLI (§7.4). Build a `CsvDefinition` from it (`delimiter`, `quote`, `escape`, `encoding`, `bomBytes`).
   2. **load**: open with `Helper::openInputStream(input, path)` (same call as the app), `CsvParser().parseCsvStream(&input, table.getStorage(), &def)`, `table.updateInternals()`, `table.setDefinition(def)`. Construct the table as `CsvTable table(0, 0)`: the default constructor (`csvtable.cpp:37`) builds a temporary and leaves `headerRow` uninitialised.
-  3. **save**: `table.saveCsv(out + ".saved.csv", noop_cb, nullptr)`.
+  3. **save** (if `--save`): `table.saveCsv(out + ".saved.csv", noop_cb, nullptr)`.
   4. **find_cs / find_ci / find_re** (if given): `table.findSubstring(needle, 0, 0, {0, 0, rows-1, cols-1}, caseSensitive, useRegex)`.
-  5. **macro** (if given): `macro.execute(&table, {r0, c0, r1, c1}, source)`.
-  6. **sort** (if given): `table.sortTable(col, !desc, type)` then **save_sorted** to `out + ".sorted.csv"`.
+  5. **macro** (if given): `macro.execute(&table, {r0, c0, r1, c1}, source)` (negative `r1`/`c1` = last row/column), then always **save_macro** to `out + ".macro.csv"` — the macro's result is what parity compares.
+  6. **sort** (if given): `table.sortTable(col, !desc, type)`, then **save_sorted** to `out + ".sorted.csv"` only with `--save-sorted` (2 GB per run otherwise; only the `--sort-col 0` parity run needs it).
   7. After each step print one JSON line (§7.4). Peak RSS: Windows `GetProcessMemoryInfo(...).PeakWorkingSetSize`; macOS `getrusage` `ru_maxrss` (bytes); Linux `ru_maxrss` (KiB).
 - If `Fl::check()` misbehaves without a display on Linux, run under a desktop session or `xvfb-run`.
 
@@ -412,15 +412,15 @@ Standalone CMake project; does **not** touch the root `CMakeLists.txt`.
 
 ```
 <bin> --file F --delim <char|tab> --quote <char> --escape <char>
-      --enc utf8|latin1|win1252|utf16le|utf16be --bom <n> --out <prefix>
+      --enc utf8|latin1|win1252|utf16le|utf16be --bom <n> --out <prefix> [--save]
       [--find TEXT] [--find-ci TEXT] [--find-re PATTERN]
       [--macro FILE.js --macro-sel r0,c0,r1,c1]
-      [--sort-col N --sort-type num|str|stri [--sort-desc]]
+      [--sort-col N --sort-type num|str|stri [--sort-desc] [--save-sorted]]
 ```
 
 Output: one JSON object per step on stdout:
 `{"tool":"cpp","file":"big.csv","step":"load","ms":31234,"rows":16000001,"cols":10,"peak_rss_mb":4321}`
-Steps in order: `load`, `save`, `find_cs`, `find_ci`, `find_re`, `macro`, `sort`, `save_sorted` (skip steps without flags). For find, add `"found":[r,c]`.
+Steps in order: `load`, `save`, `find_cs`, `find_ci`, `find_re`, `macro`, `save_macro`, `sort`, `save_sorted` (skip steps without flags). For find, add `"found":[r,c]`. Files: `<prefix>.saved.csv`, `<prefix>.macro.csv`, `<prefix>.sorted.csv`.
 
 `tc-bench` uses **only the public `tc-core` API** (the same code paths as the app) and **explicit** dialects (no auto-detection), so both tools parse identically. The harness does no header switching; neither does `tc-bench`.
 
@@ -428,7 +428,7 @@ Steps in order: `load`, `save`, `find_cs`, `find_ci`, `find_re`, `macro`, `sort`
 
 - Release builds only. Close heavy apps, plugged in, same disk.
 - One warm-up run (fills the OS file cache), then 3 measured runs; report the median.
-- `big.csv` runs: load+save; `--find NEEDLE_7f3a --find-ci needle_7F3A`; three sort runs: `--sort-col 5 --sort-type num`, `--sort-col 2 --sort-type str`, `--sort-col 4 --sort-type stri`; parity sort run `--sort-col 0 --sort-type num` (unique keys → byte-identical sorted output).
+- `big.csv` runs: load+save; `--find NEEDLE_7f3a --find-ci needle_7F3A`; three sort runs: `--sort-col 5 --sort-type num`, `--sort-col 2 --sort-type str`, `--sort-col 4 --sort-type stri`; parity sort run `--sort-col 0 --sort-type num --save-sorted` (unique keys → byte-identical sorted output).
 - `quoted.csv` runs: `--find-re "NEEDLE_[0-9a-f]{4}"`; macro run (phase 3).
 - Record everything in `rust/BENCHMARKS.md` (§13).
 
@@ -552,7 +552,7 @@ State: `top_row: u64`, `y_offset: Pixels` in `[0, row_height)`, `scroll_x: Pixel
 1. [ ] `macros.rs` per §5.8 with `rquickjs`.
 2. [ ] Macro window: multi-line code input (gpui-kit input in multi-line/code mode), Run (`secondary-enter`), Cancel (while running), log area. Keep the last source in memory for the session. Selection = current grid selection.
 3. [ ] Tests in `tc-core`: run every example from the macro section of `docs/user/docs-1.8.ascii` on a small table and assert the resulting cells; test every row of the §5.8 table (incl. `setCell` number formatting `0.5 → "0.5"`, `100 → "100"`, `1e-7 → "0"`, and `println("a", 1)` → `"a1 \n"`).
-4. [ ] Add `--macro`/`--macro-sel` to `tc-bench`. Benchmark on `quoted.csv`: a macro that multiplies column 2 by 1.1 for all rows, vs. the C++ harness.
+4. [ ] Add `--macro`/`--macro-sel` to `tc-bench`. Benchmark on `quoted.csv`: a macro that multiplies column 2 by 1.1 for all rows, vs. the C++ harness; its `.macro.csv` must be byte-identical to the C++ one (checks §5.8 number formatting).
 
 ### Phase 3 exit criteria
 - [ ] Doc examples produce the same results as in C++ (run them in the C++ app or harness to confirm).
