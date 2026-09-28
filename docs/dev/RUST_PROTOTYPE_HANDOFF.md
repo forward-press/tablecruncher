@@ -47,7 +47,7 @@ The prototype exists to **prove or disprove** these goals with numbers and a wor
 | `src/globals.hh` | 240 | Constants, `CsvDefinition` | defaults |
 | `docs/user/docs-1.8.ascii` | – | User docs incl. macro API (≈L280–340) | §5.8, §10 |
 
-Known C++ performance problems the prototype must beat: `istream` line-by-line parsing (~65 MB/s), 16 M heap-allocated row strings, every cell read copies, sort copies two strings per comparison (and case-folds both for ignore-case), case-insensitive find case-folds the whole row per cell, regex find runs a JS program through the Duktape interpreter per cell, table-level undo copies the whole table. The UI thread does all work and pumps events via ~40 `Fl::check()` calls.
+Known C++ performance problems the prototype must beat: `istream` line-by-line parsing (~65 MB/s), 16 M heap-allocated row strings, every cell read copies, sort copies two strings per comparison (and case-folds both for ignore-case), case-insensitive find case-folds the whole row per cell, regex find runs a JS program through the Duktape interpreter per cell, table-level undo copies the whole table, and reading a full row (save, copy, macros) is quadratic in the column count: `CsvDataStorage::row()` calls `get()` per column and `getColumn()` copies the whole row string and rescans it from the start (500-column `wide.csv`: 26 s to save 145 MB). The UI thread does all work and pumps events via ~40 `Fl::check()` calls.
 
 ---
 
@@ -333,6 +333,7 @@ Execution: fresh `rquickjs` Runtime + Context per run on a background thread. It
 | D13 | JS globals persist between macro runs (one Duktape heap) | Fresh context per run |
 | D14 | Sort shortcut Cmd+Ctrl+S = Ctrl+S on Windows/Linux (collides with Save) | Sort = `secondary-alt-s` |
 | D15 | `getInt` wraps to int32 | Full i64 value |
+| D16 | On Windows the file is opened in text mode (`Helper::openInputStream` defaults to `std::ios_base::in`): a `0x1A` byte ends the file and everything after it is silently lost (verified with the harness) | Files are always read as binary |
 
 C++ quirks **kept** for parity: no UTF-8 BOM written on save; `\n` line endings on save; short rows padded to `n_cols`; blank lines become rows; NUL bytes removed; CRLF inside quoted fields becomes LF; numeric sort treats unparsable cells as 0.
 
@@ -386,9 +387,9 @@ Measured on the user's Windows PC, release builds, same files, median of 3 runs 
 | `win1252.csv` | 1,000,000 rows incl. `€` `“` `”` `–` | `;` Windows-1252 |
 | `utf16le.csv` | 1,000,000 rows, BOM, CRLF, incl. emoji (surrogate pairs) and CJK | Tab, UTF-16LE, BOM 2 |
 | `utf16be.csv` | 100,000 rows, BOM, LF | `,` UTF-16BE, BOM 2 |
-| `edge/*.csv` | `empty` (0 bytes), `header_only`, `single_cell` (`x`, no newline), `no_trailing_newline`, `blank_lines` (middle + end), `nul_bytes`, `cr_only` (lone CR endings), `unterminated_quote`, `invalid_utf8`, `latin1_c1` (Latin-1 with 0x80–0x9F) | `,` UTF-8 (last one Latin-1) |
+| `edge/*.csv` | `empty` (0 bytes), `header_only`, `single_cell` (`x`, no newline), `no_trailing_newline`, `blank_lines` (middle + end), `nul_bytes`, `cr_only` (lone CR endings), `unterminated_quote`, `invalid_utf8`, `latin1_c1` (Latin-1 with 0x80–0x9F), `ctrl_z` (byte 0x1A mid-file) | `,` UTF-8 (`latin1_c1`: Latin-1) |
 
-Expected parity diffs: `edge/unterminated_quote` (D1), `edge/invalid_utf8` (D6), `edge/latin1_c1` (D5). Everything else must be byte-identical.
+Expected parity diffs: `edge/unterminated_quote` (D1), `edge/invalid_utf8` (D6), `edge/latin1_c1` (D5), `edge/ctrl_z` (D16, Windows only). Everything else must be byte-identical.
 
 ### 7.3 C++ benchmark harness (`bench/cpp/`)
 
@@ -399,7 +400,7 @@ Standalone CMake project; does **not** touch the root `CMakeLists.txt`.
 - `tc_bench_cpp.cpp` defines the globals the sources expect: `Macro macro;` and `void updateMacroLogBuffer(void*, std::string) {}`.
 - Behaviour:
   1. Parse CLI (§7.4). Build a `CsvDefinition` from it (`delimiter`, `quote`, `escape`, `encoding`, `bomBytes`).
-  2. **load**: open with `Helper::openInputStream(input, path)` (same call as the app), `CsvParser().parseCsvStream(&input, table.getStorage(), &def)`, `table.updateInternals()`, `table.setDefinition(def)`.
+  2. **load**: open with `Helper::openInputStream(input, path)` (same call as the app), `CsvParser().parseCsvStream(&input, table.getStorage(), &def)`, `table.updateInternals()`, `table.setDefinition(def)`. Construct the table as `CsvTable table(0, 0)`: the default constructor (`csvtable.cpp:37`) builds a temporary and leaves `headerRow` uninitialised.
   3. **save**: `table.saveCsv(out + ".saved.csv", noop_cb, nullptr)`.
   4. **find_cs / find_ci / find_re** (if given): `table.findSubstring(needle, 0, 0, {0, 0, rows-1, cols-1}, caseSensitive, useRegex)`.
   5. **macro** (if given): `macro.execute(&table, {r0, c0, r1, c1}, source)`.
@@ -567,7 +568,7 @@ State: `top_row: u64`, `y_offset: Pixels` in `[0, row_height)`, `scroll_x: Pixel
 3. [ ] Write `rust/PROTOTYPE_REPORT.md`:
    - One section per user goal (§1.1): verdict (met / partly / not met) + evidence (numbers, screenshots paths, CI links).
    - Build experience: exact steps per OS today (C++) vs. prototype, count of platform-specific code lines (`cfg!`/`#[cfg]`) in the prototype.
-   - Divergences D1–D15 and any new ones.
+   - Divergences D1–D16 and any new ones.
    - GPUI experience: API friction, missing components, bugs hit, version pinning notes.
    - Remaining work for a full port (the out-of-scope list in §4, with rough size), top risks.
    - Recommendation: go / no-go.

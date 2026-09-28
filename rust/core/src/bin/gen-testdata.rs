@@ -530,7 +530,7 @@ fn gen_utf16(
 }
 
 fn write_edge(dir: &Path) -> io::Result<u64> {
-    let files: [(&str, &[u8]); 10] = [
+    let files: [(&str, &[u8]); 11] = [
         ("empty.csv", b""),
         ("header_only.csv", b"a,b,c\n"),
         ("single_cell.csv", b"x"),
@@ -541,6 +541,7 @@ fn write_edge(dir: &Path) -> io::Result<u64> {
         ("unterminated_quote.csv", b"a,b\n1,\"open\n2,3\n"),
         ("invalid_utf8.csv", b"a,b\n1,na\xc3\x28ve\n\xff,2\n"),
         ("latin1_c1.csv", b"a,b\n1,x\x80y\n2,\x9f\x93\n"),
+        ("ctrl_z.csv", b"a,b\n1,x\x1ay\n2,z\n"),
     ];
     let mut total = 0u64;
     for (name, bytes) in files {

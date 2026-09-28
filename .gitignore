@@ -14,9 +14,6 @@ scripts/appimagetool-x86_64.AppImage
 /graphify-out
 AGENTS.md
 /testdata/
-/bench/target/
-/rust/target/
 /rust/target/
 /bench/cpp/build/
-/testdata/
 

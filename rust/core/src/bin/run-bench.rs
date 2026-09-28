@@ -132,6 +132,7 @@ fn cases() -> Vec<Case> {
         ("edge/unterminated_quote.csv", UTF8),
         ("edge/invalid_utf8.csv", UTF8),
         ("edge/latin1_c1.csv", [",", "\"", "\"", "latin1", "0"]),
+        ("edge/ctrl_z.csv", UTF8),
     ];
     for &(file, dialect) in parity_files {
         let stem = file
@@ -158,6 +159,7 @@ fn expected_difference(file: &str) -> Option<&'static str> {
         }
         "edge/invalid_utf8.csv" => Some("D6: different U+FFFD replacement rules"),
         "edge/latin1_c1.csv" => Some("D5: C++ drops Latin-1 bytes 0x80–0x9F"),
+        "edge/ctrl_z.csv" => Some("D16: on Windows C++ reads in text mode, byte 0x1A ends the file"),
         _ => None,
     }
 }
